@@ -1,0 +1,4 @@
+astropy
+fitsio
+numpy
+pandas
