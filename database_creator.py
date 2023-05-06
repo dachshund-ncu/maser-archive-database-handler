@@ -167,3 +167,6 @@ def construct_database(parameters_file: str, archve_dir: str, output_file: str):
     # add sources to the table
     for d in context_dict_list:
         database.add_source(tuple(d.values()))
+
+if __name__ == '__main__':
+    construct_database('/home/michu/projects/maser-archive-dashboard/database_handler/6ghz_list.txt', '/home/michu/projects/maser-archive-dashboard/archive', 'maser_database.db')

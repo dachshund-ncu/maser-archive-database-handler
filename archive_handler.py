@@ -10,11 +10,30 @@ md@astro.umk.pl
 '''
 import os, shutil, numpy as np
 import db_handler
-from database_creator import get_source_params
+from database_creator import get_source_params, make_ra_str, make_dec_str
+import pandas as pd
 
 DE_CAT = os.path.dirname(__file__)
 ARCHIVE_DIR = '/home/michu/Drop/Dropbox/metvar_archive/fits_sources'
 DATABASE_FILE = '/home/michu/Drop/Dropbox/metvar_archive/maser_archive_db.db'
+
+def create_new_source_in_archive(full_source_name: str, short_name: str, db_file: db_handler.sources_database):
+    '''
+    Creates new source in the database
+    '''
+    sources_params = pd.read_csv(os.path.join(DE_CAT, '6ghz_list.txt'), header=None, dtype=str, delimiter=" ")
+    data_slice = sources_params[sources_params.iloc[:,0] == full_source_name]
+    data_tuple = (full_source_name, make_ra_str(data_slice[2].values[0]), make_dec_str(data_slice[3].values[0]), short_name, float(data_slice[4].values[0]), '---', '---', 0, 0.0)
+    add_source_to_database(data_tuple, db_file)
+    os.mkdir(os.path.join(ARCHIVE_DIR, full_source_name))
+    os.mkdir(os.path.join(ARCHIVE_DIR, full_source_name, 'm_band'))
+    return data_tuple
+def add_source_to_database(source_tuple: tuple, db_file: db_handler.sources_database):
+    '''
+    Adds source to the database file
+    '''
+    print("Adding database entry: ", source_tuple)
+    db_file.add_source(source_tuple)
 
 def split_to_sources(fits_files: str) -> dict:
     '''
@@ -81,14 +100,27 @@ def copy_files_to_database(fits_files: str, archive_dir: str, database_file: str
             continue
         # get source params
         source_tuple = database.get_from_short_name(short_name)
+
         # exception handle: short name not present in database
         if source_tuple is None:
+
+            # choose source manually
             print(f"For {short_name} we did not find a proper source in database. Please provide it by yourself:")
             source_full_name = input("---> ")
             source_tuple = database.get_source(source_full_name)
-        # destination directory
-        destination_dir = os.path.join(archive_dir, source_tuple[1], 'm_band')
-        # copy the files
-        copy_fits_files(source_dictionary[short_name], destination_dir)
-        # update db
-        update_database(database, source_tuple, destination_dir)
+
+            # if source is not present in database - get new from text file
+            if source_tuple is None:
+                # create new source in the database
+                source_tuple = create_new_source_in_archive(source_full_name, short_name, database)
+        
+        if source_tuple is not None:
+            # destination directory
+            destination_dir = os.path.join(archive_dir, source_tuple[1], 'm_band')
+            # copy the files
+            copy_fits_files(source_dictionary[short_name], destination_dir)
+            # update db
+            update_database(database, source_tuple, destination_dir)
+        
+        else:
+            print("Failed to copy files to the database")
