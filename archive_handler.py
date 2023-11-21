@@ -9,9 +9,10 @@ author: Michał Durjasz
 md@astro.umk.pl
 '''
 import os, shutil, numpy as np
-import db_handler
-from database_creator import get_source_params, make_ra_str, make_dec_str
+from . import db_handler
+from .database_creator import get_source_params, make_ra_str, make_dec_str
 import pandas as pd
+import streamlit as st
 
 DE_CAT = os.path.dirname(__file__)
 ARCHIVE_DIR = '/home/michu/Drop/Dropbox/metvar_archive/fits_sources'
@@ -56,6 +57,36 @@ def split_to_sources(fits_files: str) -> dict:
         s_name = os.path.basename(f_file).split('_')[0]
         context_dict[s_name].append(f_file)
     return context_dict
+
+def split_to_sources_st(fits_files) -> dict:
+    '''
+    Splits the fits_files table into sources - accepts streamlit IO
+    Arguments:
+    | fits_files: a table with all of the data-reducted fits files (Streamlit IO)
+    Returns:
+    | splitted_fits_files - a dict with fits_files, but groupped by source
+    '''
+    basenames = [os.path.basename(f_file.name) for f_file in fits_files]
+    # get unique filenames
+    sources_short_names = np.unique([f_file.split('_')[0] for f_file in basenames])
+    # dictionary
+    context_dict = {}
+    for src_name in sources_short_names:
+        context_dict[src_name] = []
+    # iterate through whole dataset to 
+    for f_file in fits_files:
+        s_name = os.path.basename(f_file.name).split('_')[0]
+        context_dict[s_name].append(f_file)
+    return context_dict
+
+def copy_fits_files_st(fits_filenames, destination_dir: str):
+    '''
+    Copies the fits files given in the argument to the destination dir
+    '''
+    for f_file in fits_filenames:
+        with open(os.path.join(destination_dir, f_file.name), "wb") as f:
+            f.write(f_file.getbuffer())
+
 
 def copy_fits_files(fits_filenames: str, destination_dir: str):
     '''
@@ -124,3 +155,31 @@ def copy_files_to_database(fits_files: str, archive_dir: str, database_file: str
         
         else:
             print("Failed to copy files to the database")
+
+def move_files_to_database(files, archive_dir: str, database: db_handler.sources_database) -> bool:
+    """
+    This routine manages copying the .fits files to the database
+    Arguments:
+    | fits_files:     files (streamlit IO) to copy
+    | archive_dir:    directory of the maser archive (absolute path)
+    | database_file:  file with the database
+    """
+    # database = db_handler.sources_database(database_file)
+    source_dictionary = split_to_sources_st(files)
+    for short_name in source_dictionary.keys():
+        if short_name == 'g32p74':
+            continue
+        # get source params
+        source_tuple = database.get_from_short_name(short_name.strip())
+        # exception handle: short name not present in database
+        if source_tuple is not None:
+            # destination directory
+            destination_dir = os.path.join(archive_dir, source_tuple[1], 'm_band')
+            # copy the files
+            copy_fits_files_st(source_dictionary[short_name], destination_dir)
+            # update db
+            update_database(database, source_tuple, destination_dir)
+        else:
+            # choose source manually
+            # print(f"For {short_name} I did not find a proper source in database!")
+            st.write(f"For {short_name} I did not find a proper source in database!")

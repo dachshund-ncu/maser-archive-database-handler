@@ -18,7 +18,7 @@ import glob
 import numpy as np
 import fitsio as fits
 from astropy.time import Time
-from db_handler import sources_database
+
 
 # global: catalogue of helper_routines.py
 DE_CAT = os.path.dirname(__file__)
@@ -158,6 +158,7 @@ def construct_database(parameters_file: str, archve_dir: str, output_file: str):
     '''
     Makes a new database file, based on the archive provided in directory
     '''
+    from db_handler import sources_database
     # get the dictionary for database
     context_dict_list = get_all_sources_parameters(parameters_file, archve_dir)
     # create database
@@ -169,4 +170,4 @@ def construct_database(parameters_file: str, archve_dir: str, output_file: str):
         database.add_source(tuple(d.values()))
 
 if __name__ == '__main__':
-    construct_database('/home/michu/projects/maser-archive-dashboard/database_handler/6ghz_list.txt', '/home/michu/projects/maser-archive-dashboard/archive', 'maser_database.db')
+    construct_database(os.path.join(DE_CAT, '6ghz_list.txt'), os.path.join(os.path.dirname(DE_CAT), 'archive'), 'maser_database.db')
