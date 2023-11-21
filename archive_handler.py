@@ -156,7 +156,7 @@ def copy_files_to_database(fits_files: str, archive_dir: str, database_file: str
         else:
             print("Failed to copy files to the database")
 
-def move_files_to_database(files, archive_dir: str, database: db_handler.sources_database) -> bool:
+def move_files_to_database(files, archive_dir: str, database: db_handler.sources_database) -> list:
     """
     This routine manages copying the .fits files to the database
     Arguments:
@@ -166,6 +166,7 @@ def move_files_to_database(files, archive_dir: str, database: db_handler.sources
     """
     # database = db_handler.sources_database(database_file)
     source_dictionary = split_to_sources_st(files)
+    sources = []
     for short_name in source_dictionary.keys():
         if short_name == 'g32p74':
             continue
@@ -179,7 +180,11 @@ def move_files_to_database(files, archive_dir: str, database: db_handler.sources
             copy_fits_files_st(source_dictionary[short_name], destination_dir)
             # update db
             update_database(database, source_tuple, destination_dir)
+            # add to sources
+            sources.append(source_tuple[1])
+            st.write(f"Added {len(source_dictionary[short_name])} files to {source_tuple[1]}")
         else:
             # choose source manually
             # print(f"For {short_name} I did not find a proper source in database!")
             st.write(f"For {short_name} I did not find a proper source in database!")
+    return sources
